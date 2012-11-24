@@ -82,7 +82,7 @@ class IRQqueue(object):
     def __repr__(self):
         return self.__str__()
 
-def get_irq(match='TxRx'):
+def get_irq(match='IR-'):
     irqfile = open('/proc/interrupts', 'r')
     lines = irqfile.readlines()
 
@@ -107,6 +107,8 @@ def parse_irqline(line, match):
 
     irq = data[0]
     irqdata = data[1]
+
+    if irq == "0": return
 
     irq_per_core = []
 
@@ -175,7 +177,7 @@ def main(really=False):
     logging.debug("%s" % CPUS)
     irqs = get_irq()
     for irq in irqs:
-        if irqs[irq][-1].startswith('eth2'):
+#        if irqs[irq][-1].startswith('eth'):
             name = irqs[irq][-1].split('-')[0]
             if name not in DEVICES:
                 DEVICES[name] = []
