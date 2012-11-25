@@ -14,6 +14,7 @@ interval=1
 def main():
 
     sys.stderr.write("\x1b[2J\x1b[H")
+    sys.stderr.write("\033[?25l")
 
     iv_start = get_irq()
     old_irq = iv_start.copy()
@@ -123,7 +124,7 @@ def parse_irqline(line, match):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Displays IRQ usage')
-    parser.add_argument('--interval','-i', help="refresh interval", nargs=1, type=float, default=1)
+    parser.add_argument('--interval','-i', help="refresh interval", nargs=1, type=float, default=[1])
     parser.add_argument('--match','-m', help="match IRQ name", nargs=1, type=str, default='IR-')
     args = parser.parse_args()
     if len(args.interval) == 1:
@@ -133,4 +134,4 @@ if __name__ == "__main__":
     try:
         sys.exit(main())
     except KeyboardInterrupt:
-        pass
+        sys.stderr.write("\033[?25h")
