@@ -19,6 +19,7 @@ DEVICES = {}
 import logging
 import argparse
 import sys
+import os
 
 logger = logging.getLogger()
 
@@ -82,7 +83,9 @@ class IRQqueue(object):
     def __repr__(self):
         return self.__str__()
 
-def get_irq(match='IR-'):
+
+def get_irq(match):
+    """Get interrupts"""
     irqfile = open('/proc/interrupts', 'r')
     lines = irqfile.readlines()
 
@@ -91,7 +94,8 @@ def get_irq(match='IR-'):
     for line in lines:
         if len(line) > 2:
             irqline_res = parse_irqline(line, match)
-            if irqline_res: irqs[irqline_res[0]] = irqline_res[1]
+            if irqline_res:
+                irqs[irqline_res[0]] = irqline_res[1]
 
     return irqs
 
@@ -108,45 +112,36 @@ def parse_irqline(line, match):
     irq = data[0]
     irqdata = data[1]
 
-    if irq == "0": return
-
     irq_per_core = []
 
-    irqdata_array = irqdata.strip().split()
+    pattern = re.compile(r'\s+')
+    irqdata_array = re.sub(pattern, ' ', irqdata.strip()).split(' ')
+    name = []
     for core_irqs in irqdata_array:
+        try:
+            int(core_irqs)
+        except:
+            if core_irqs != 'interrupts' and '-edge' not in core_irqs and \
+               '-fasteoi' not in core_irqs:
+                name.append(core_irqs)
+            continue
         irq_per_core.append(core_irqs)
 
+    try:
+        int(irq)
+        irq_per_core.append(' '.join(name))
+    except:
+        irq_per_core.append('')
+    if len(irq_per_core) < 3:
+        return
     return [irq, irq_per_core]
 
-def main(really=False):
-    """
-    processor   : 31
-    vendor_id   : GenuineIntel
-    cpu family  : 6
-    model       : 45
-    model name  : Intel(R) Xeon(R) CPU E5-2670 0 @ 2.60GHz
-    stepping    : 7
-    cpu MHz     : 2600.045
-    cache size  : 20480 KB
-    physical id : 1
-    siblings    : 16
-    core id     : 7
-    cpu cores   : 8
-    apicid      : 47
-    initial apicid  : 47
-    fpu     : yes
-    fpu_exception   : yes
-    cpuid level : 13
-    wp      : yes
-    flags       : fpu vme de pse tsc msr pae mce cx8 apic mtrr pge ...
-    bogomips    : 5199.29
-    clflush size    : 64
-    cache_alignment : 64
-    address sizes   : 46 bits physical, 48 bits virtual
-    power management:
 
-    """
-    cpuinfo = open('/proc/cpuinfo', 'r')
+def main(really=False, match='IR-'):
+    try:
+        cpuinfo = open('/proc/cpuinfo', 'r')
+    except IOError:
+        self.error('Cannot open /proc/cpuinfo')
     core_id = None
     cpu_id = None
     local_id = None
@@ -175,13 +170,12 @@ def main(really=False):
                 local_id = value
     cpuinfo.close()
     logging.debug("%s" % CPUS)
-    irqs = get_irq()
+    irqs = get_irq(match=match)
     for irq in irqs:
-#        if irqs[irq][-1].startswith('eth'):
-            name = irqs[irq][-1].split('-')[0]
-            if name not in DEVICES:
-                DEVICES[name] = []
-            DEVICES[name].append(IRQqueue(irq, irqs[irq][-1].strip()))
+        name = irqs[irq][-1].split('-')[0]
+        if name not in DEVICES:
+            DEVICES[name] = []
+        DEVICES[name].append(IRQqueue(irq, irqs[irq][-1].strip()))
     logging.debug("%s" % DEVICES)
     map_interrupts()
     for cpu_id in CPUS:
@@ -218,15 +212,22 @@ def alter_irq():
                                                       core.hex_mask,device.irq))
 
 if __name__ == '__main__':
-    #
+    if not sys.platform.startswith('linux'):
+        print("This script works only on Linux system!")
+        sys.exit(1)
     parser = argparse.ArgumentParser(
                     description='Parse and assing IRQs on NUMA enabled system')
     parser.add_argument('--really', help='Really do changes?',
                         action='store_true')
     parser.add_argument('--debug', help='Debug', action='store_true')
+    parser.add_argument('--match','-m', help="match IRQ name", nargs=1,
+                        type=str, default=['IR-'])
     args = parser.parse_args()
     if args.debug:
         logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(logging.WARNING)
-    main(really=args.really)
+    if args.really and os.getuid() != 0:
+        print("This need's root privileges!")
+        sys.exit(1)
+    main(really=args.really, match=args.match[0])
