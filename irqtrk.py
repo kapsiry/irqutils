@@ -2,88 +2,135 @@
 import re
 import sys
 from time import sleep
+import sys
+import argparse
+
+line_format = '[%12s | %03s] %s [%10i | %5i]'
+head_format = '[%12s | %03s] %s [%10s | %5s]'
+
+match = 'IR-'
+interval=1
 
 def main():
-	interval=0.1
 
-	sys.stderr.write("\x1b[2J\x1b[H")
+    sys.stderr.write("\x1b[2J\x1b[H")
 
-	iv_start = get_irq()
-	old_irq = iv_start.copy()
+    iv_start = get_irq()
+    old_irq = iv_start.copy()
 
-	sleep(interval)
+    print_header()
+    while True:
+        curr_irq = get_irq()
+        # set cursor to home
+        sys.stderr.write("\x1b[H")
+        # step one row down
+        sys.stderr.write("\x1b[1B")
+        print_irqdiff(curr_irq, old_irq, iv_start, interval)
+        old_irq = curr_irq
+        sleep(interval)
 
-	while True:
-		curr_irq = get_irq()
-		sys.stderr.write("\x1b[H")
-		print_irqdiff(curr_irq, old_irq, iv_start)
-		old_irq = curr_irq
-		sleep(0.3)
+def print_header():
+    print(head_format % ('name', 'IRQ', '+ = Current, # = Old, - = No', 'Interrupts', '1/sec'))
 
-def print_irqdiff(curr_irq, old_irq, iv_start):
-	keys = curr_irq.keys()
-	for k in sorted(keys):
-		if old_irq[k] != None:
-			print(get_diffline(k, curr_irq[k], old_irq[k], iv_start[k]))
+def print_irqdiff(curr_irq, old_irq, iv_start, interval):
+    keys = curr_irq.keys()
+    for k in sorted(keys):
+        if old_irq[k] != None:
+            print(get_diffline(k, curr_irq[k], old_irq[k], iv_start[k], interval))
 
-def get_diffline(irq, curr_irqline, old_irqline, iv_start):
-	str = ""
+def get_diffline(irq, curr_irqline, old_irqline, iv_start, interval):
+    str = ""
 
-	itot=0
+    itot=0
 
-	for i in range(0,len(curr_irqline)-2):
-		ind = None
+    for i in range(0,len(curr_irqline)-2):
+        ind = None
 
-		diff_to_begin = int(curr_irqline[i])-int(iv_start[i])
+        diff_to_begin = int(curr_irqline[i])-int(iv_start[i])
 
-		if curr_irqline[i] != old_irqline[i]: ind = '!'
-		elif diff_to_begin != 0: ind = '+'
-		else: ind = '-'
-		
-		str = str + " %s" % (ind) 
+        if curr_irqline[i] != old_irqline[i]:
+            ind = '+'
+        elif diff_to_begin != 0:
+            ind = '#'
+        else:
+            ind = '-'
+        str = str + " %s" % (ind) 
 
-		itot += diff_to_begin
+        itot += diff_to_begin
 
-	fstr = '[iv %12s @ irq %03i] %s [ti=%10i]' % (curr_irqline[len(curr_irqline)-1], int(irq), str, itot)
+    stot=0
 
-	return fstr
+    for i in range(0,len(curr_irqline)-2):
 
-#def get_irq(match='TxRx'):
-def get_irq(match='eth2'):
-	irqfile = open('/proc/interrupts', 'r')
-	lines = irqfile.readlines()
-	
-	irqs = {}
-	
-	for line in lines:
-		if len(line) > 2:
-			irqline_res = parse_irqline(line, match)
-			if irqline_res: irqs[irqline_res[0]] = irqline_res[1]
+        diff_to_old = int(curr_irqline[i])-int(old_irqline[i])
+        stot += diff_to_old
 
-	return irqs
+    stot = stot / interval
+
+    fstr = line_format % (curr_irqline[len(curr_irqline)-1], irq, str, itot, stot)
+
+    return fstr
+
+def get_irq():
+    irqfile = open('/proc/interrupts', 'r')
+    lines = irqfile.readlines()
+
+    irqs = {}
+
+    for line in lines:
+        if len(line) > 2:
+            irqline_res = parse_irqline(line, match)
+            if irqline_res:
+                irqs[irqline_res[0]] = irqline_res[1]
+
+    return irqs
 
 def parse_irqline(line, match):
-	line = line.strip()
+    line = line.strip()
 
-	if match not in line: return
+    if match not in line:
+        return
 
-	data = line.split(':')
-	if len(data) != 2: return
+    data = line.split(':')
+    if len(data) != 2:
+        return
 
-	irq = data[0]
-	irqdata = data[1]
+    irq = data[0]
+    irqdata = data[1]
 
-	irq_per_core = []
+    irq_per_core = []
 
-	pattern = re.compile(r'\s+')
-	irqdata_array = re.sub(pattern, ' ', irqdata.strip()).split(' ')
-	for core_irqs in irqdata_array:
-		irq_per_core.append(core_irqs)
+    pattern = re.compile(r'\s+')
+    irqdata_array = re.sub(pattern, ' ', irqdata.strip()).split(' ')
+    name = []
+    for core_irqs in irqdata_array:
+        try:
+            int(core_irqs)
+        except:
+            if core_irqs != 'interrupts' and '-edge' not in core_irqs and '-fasteoi' not in core_irqs:
+                name.append(core_irqs)
+            continue
+        irq_per_core.append(core_irqs)
 
-	return [irq, irq_per_core]
+    try:
+        int(irq)
+        irq_per_core.append(' '.join(name))
+    except:
+        irq_per_core.append('')
+    if len(irq_per_core) < 3:
+        return
+    return [irq, irq_per_core]
 
 if __name__ == "__main__":
-	try:
-		sys.exit(main())
-	except KeyboardInterrupt:
-		pass
+    parser = argparse.ArgumentParser(description='Displays IRQ usage')
+    parser.add_argument('--interval','-i', help="refresh interval", nargs=1, type=float, default=1)
+    parser.add_argument('--match','-m', help="match IRQ name", nargs=1, type=str, default='IR-')
+    args = parser.parse_args()
+    if len(args.interval) == 1:
+        interval = float(args.interval[0])
+    if len(args.match) == 1:
+        match = args.match[0]
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        pass
