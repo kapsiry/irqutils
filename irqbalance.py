@@ -109,15 +109,15 @@ def parse_irqline(line, match):
     if len(data) != 2:
         return
 
-    irq = data[0]
-    irqdata = data[1]
+    irq = data[0].strip()
+    irqdata = data[1].strip()
 
     irq_per_core = []
 
-    pattern = re.compile(r'\s+')
-    irqdata_array = re.sub(pattern, ' ', irqdata.strip()).split(' ')
+    irqdata_array = irqdata.strip().split()
     name = []
     for core_irqs in irqdata_array:
+        core_irqs = core_irqs.strip()
         try:
             int(core_irqs)
         except:
@@ -169,17 +169,15 @@ def main(really=False, match='IR-'):
             elif key == 'core id':
                 local_id = value
     cpuinfo.close()
-    logging.debug("%s" % CPUS)
     irqs = get_irq(match=match)
     for irq in irqs:
         name = irqs[irq][-1].split('-')[0]
         if name not in DEVICES:
             DEVICES[name] = []
         DEVICES[name].append(IRQqueue(irq, irqs[irq][-1].strip()))
-    logging.debug("%s" % DEVICES)
     map_interrupts()
     for cpu_id in CPUS:
-        logging.info("CPU %s interrupts %s" % (cpu_id, CPUS[cpu_id].interrupts))
+        logging.info("%s interrupts on cpu %s" % (CPUS[cpu_id].interrupts, cpu_id))
 
     if really:
         alter_irq()
@@ -196,7 +194,7 @@ def map_interrupts(noob=True):
             core = sorted(cpu.cores, key=lambda x: x.interrupts)[0]
             core.add_interrupt()
             core.devices.append(irqqueue)
-            logging.debug("IRQ %s TO CORE %s" % (irqqueue.irq, core))
+            logging.debug("IRQ %s TO %s" % (irqqueue.irq, core))
 
 def alter_irq():
     for cpu in CPUS:
@@ -221,7 +219,7 @@ if __name__ == '__main__':
                         action='store_true')
     parser.add_argument('--debug', help='Debug', action='store_true')
     parser.add_argument('--match','-m', help="match IRQ name", nargs=1,
-                        type=str, default=['IR-'])
+                        type=str, default=['IR-PCI'])
     args = parser.parse_args()
     if args.debug:
         logger.setLevel(logging.DEBUG)
