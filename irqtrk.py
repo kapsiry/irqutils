@@ -9,7 +9,8 @@ import curses
 line_format = '[%12s | %03s] %s [%10i | %5i]'
 head_format = '[%12s | %03s] %s [%10s | %5s]'
 
-match = 'IR-'
+# Nearly every interesting interrupt have dash on its name
+match = '-'
 interval=1
 
 scr = None
