@@ -4,6 +4,7 @@ import sys
 from time import sleep
 import sys
 import argparse
+import curses
 
 line_format = '[%12s | %03s] %s [%10i | %5i]'
 head_format = '[%12s | %03s] %s [%10s | %5s]'
@@ -11,35 +12,71 @@ head_format = '[%12s | %03s] %s [%10s | %5s]'
 match = 'IR-'
 interval=1
 
-def main():
+scr = None
+pad = None
+scroll = 0
 
-    sys.stderr.write("\x1b[2J\x1b[H")
-    sys.stderr.write("\033[?25l")
+def main():
+    global scroll,scr,pad
+    y,x = scr.getmaxyx()
+    irq_count = len(get_irq())
+    pad = curses.newpad(irq_count, x)
+    curses.noecho()
+    # instant key input
+    curses.cbreak()
 
     iv_start = get_irq()
     old_irq = iv_start.copy()
 
+    scr.timeout(interval * 50)
     print_header()
     while True:
         curr_irq = get_irq()
-        # set cursor to home
-        sys.stderr.write("\x1b[H")
-        # step one row down
-        sys.stderr.write("\x1b[1B")
         print_irqdiff(curr_irq, old_irq, iv_start, interval)
         old_irq = curr_irq
-        sleep(interval)
+        pad.refresh(scroll, 0, 1, 0, y-1, x-1)
+        g = 0
+        while True:
+            c = scr.getch()
+            if c == curses.KEY_UP:
+                if scroll > 0:
+                    scroll -= 1
+                break
+            elif c == curses.KEY_DOWN:
+                if scroll <= (irq_count - y):
+                    scroll += 1
+                break
+            g += 1
+            if g > 19:
+                break
+            #sleep(interval / 20.0)
 
 def print_header():
-    print(head_format % ('name', 'IRQ', '+ = Current, # = Old, - = No',
-                                                        'Interrupts', '1/sec'))
+    cpus = get_cpu_count()
+    center = '+ = Current, # = Old, - = No'
+    for i in range((cpus * 2 - 2) - len(center)):
+        if (i % 2) == 0:
+            center += ' '
+        else:
+            center = ' ' + center
+    scr.addstr(0, 0, head_format % ('name', 'IRQ', center,
+                  'Interrupts', '1/sec'))
 
 def print_irqdiff(curr_irq, old_irq, iv_start, interval):
+    global scroll
+    row = 0
     keys = curr_irq.keys()
     for k in sorted(keys):
         if old_irq[k] != None:
-            print(get_diffline(k, curr_irq[k], old_irq[k], iv_start[k],
-                  interval))
+            if pad.getmaxyx()[0] == (row + scroll):
+                # Screen full :/
+                break
+            try:
+                pad.addstr(row, 0, get_diffline(k, curr_irq[k], old_irq[k], iv_start[k],
+                           interval))
+                row += 1
+            except Exception as e:
+                print("ERROR: %s" % e)
 
 def get_diffline(irq, curr_irqline, old_irqline, iv_start, interval):
     str = ""
@@ -126,6 +163,22 @@ def parse_irqline(line, match):
         return
     return [irq, irq_per_core]
 
+def reset_term():
+    curses.nocbreak()
+    scr.keypad(0)
+    curses.echo()
+    curses.endwin()
+
+def get_cpu_count():
+    cpu_count = 0
+    f = open('/proc/cpuinfo', 'r')
+    for l in f.readlines():
+        if len(l) > 4:
+            key,value = l.split(':',2)
+            if key.strip() == 'processor':
+                cpu_count += 1
+    return cpu_count
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Displays IRQ usage')
     parser.add_argument('--interval','-i', help="refresh interval", nargs=1,
@@ -138,6 +191,12 @@ if __name__ == "__main__":
     if len(args.match) == 1:
         match = args.match[0]
     try:
+        scr = curses.initscr()
+        y,x = scr.getmaxyx()
+        scr.keypad(1)
         sys.exit(main())
     except KeyboardInterrupt:
-        sys.stderr.write("\033[?25h")
+        reset_term()
+    except:
+        reset_term()
+        raise
