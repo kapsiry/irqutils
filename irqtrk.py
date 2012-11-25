@@ -28,7 +28,7 @@ def main():
     iv_start = get_irq()
     old_irq = iv_start.copy()
 
-    scr.timeout(interval * 50)
+    scr.timeout(int(interval * 50))
     print_header()
     while True:
         curr_irq = get_irq()
