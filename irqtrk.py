@@ -31,13 +31,15 @@ def main():
         sleep(interval)
 
 def print_header():
-    print(head_format % ('name', 'IRQ', '+ = Current, # = Old, - = No', 'Interrupts', '1/sec'))
+    print(head_format % ('name', 'IRQ', '+ = Current, # = Old, - = No',
+                                                        'Interrupts', '1/sec'))
 
 def print_irqdiff(curr_irq, old_irq, iv_start, interval):
     keys = curr_irq.keys()
     for k in sorted(keys):
         if old_irq[k] != None:
-            print(get_diffline(k, curr_irq[k], old_irq[k], iv_start[k], interval))
+            print(get_diffline(k, curr_irq[k], old_irq[k], iv_start[k],
+                  interval))
 
 def get_diffline(irq, curr_irqline, old_irqline, iv_start, interval):
     str = ""
@@ -68,7 +70,8 @@ def get_diffline(irq, curr_irqline, old_irqline, iv_start, interval):
 
     stot = stot / interval
 
-    fstr = line_format % (curr_irqline[len(curr_irqline)-1], irq, str, itot, stot)
+    fstr = line_format % (curr_irqline[len(curr_irqline)-1], irq, str, itot,
+                          stot)
 
     return fstr
 
@@ -108,7 +111,8 @@ def parse_irqline(line, match):
         try:
             int(core_irqs)
         except:
-            if core_irqs != 'interrupts' and '-edge' not in core_irqs and '-fasteoi' not in core_irqs:
+            if core_irqs != 'interrupts' and '-edge' not in core_irqs and \
+               '-fasteoi' not in core_irqs:
                 name.append(core_irqs)
             continue
         irq_per_core.append(core_irqs)
@@ -124,8 +128,10 @@ def parse_irqline(line, match):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Displays IRQ usage')
-    parser.add_argument('--interval','-i', help="refresh interval", nargs=1, type=float, default=[1])
-    parser.add_argument('--match','-m', help="match IRQ name", nargs=1, type=str, default='IR-')
+    parser.add_argument('--interval','-i', help="refresh interval", nargs=1,
+                        type=float, default=[1])
+    parser.add_argument('--match','-m', help="match IRQ name", nargs=1,
+                        type=str, default='IR-')
     args = parser.parse_args()
     if len(args.interval) == 1:
         interval = float(args.interval[0])

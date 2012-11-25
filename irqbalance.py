@@ -194,7 +194,8 @@ def map_interrupts(noob=True):
     for dev_name in DEVICES:
         dev = DEVICES[dev_name]
         cpu = CPUS[sorted(CPUS, key=lambda x: CPUS[x].interrupts)[0]]
-        logging.info("DEVICE %(dev)s TO CPU %(cpu)s" % {'dev' : dev_name, 'cpu': cpu})
+        logging.info("DEVICE %(dev)s TO CPU %(cpu)s" % {'dev' : dev_name,
+                                                        'cpu': cpu})
         for irqqueue in sorted(dev, key=lambda x: x.irq):
             # map to core
             # select core
@@ -212,12 +213,16 @@ def alter_irq():
                     f.write(core.hex_mask)
                     f.close()
                 except IOError:
-                    logger.error("Can't write '%s' to /proc/irq/%s/smp_affinity" % (core.hex_mask,device.irq))
+                    logger.error(
+                            "Can't write '%s' to /proc/irq/%s/smp_affinity" % (
+                                                      core.hex_mask,device.irq))
 
 if __name__ == '__main__':
     #
-    parser = argparse.ArgumentParser(description='Parse and assing IRQs on NUMA enabled system')
-    parser.add_argument('--really', help='Really do changes?', action='store_true')
+    parser = argparse.ArgumentParser(
+                    description='Parse and assing IRQs on NUMA enabled system')
+    parser.add_argument('--really', help='Really do changes?',
+                        action='store_true')
     parser.add_argument('--debug', help='Debug', action='store_true')
     args = parser.parse_args()
     if args.debug:
