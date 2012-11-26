@@ -194,6 +194,7 @@ if __name__ == "__main__":
     try:
         scr = curses.initscr()
         y,x = scr.getmaxyx()
+        curses.curs_set(0)
         scr.keypad(1)
         sys.exit(main())
     except KeyboardInterrupt:
