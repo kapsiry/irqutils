@@ -55,7 +55,7 @@ def main():
 def print_header():
     cpus = get_cpu_count()
     center = '+ = Current, # = Old, - = No'
-    for i in range((cpus * 2 - 2) - len(center)):
+    for i in range((cpus * 2) - len(center)):
         if (i % 2) == 0:
             center += ' '
         else:
@@ -69,9 +69,6 @@ def print_irqdiff(curr_irq, old_irq, iv_start, interval):
     keys = curr_irq.keys()
     for k in sorted(keys):
         if old_irq[k] != None:
-            if pad.getmaxyx()[0] == (row + scroll):
-                # Screen full :/
-                break
             try:
                 pad.addstr(row, 0, get_diffline(k, curr_irq[k], old_irq[k], iv_start[k],
                            interval))
