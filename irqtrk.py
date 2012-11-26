@@ -95,7 +95,7 @@ def get_diffline(irq, curr_irqline, old_irqline, iv_start, interval):
             ind = '#'
         else:
             ind = '-'
-        str = str + " %s" % (ind) 
+        str = str + " %s" % (ind)
 
         itot += diff_to_begin
 
@@ -108,7 +108,7 @@ def get_diffline(irq, curr_irqline, old_irqline, iv_start, interval):
 
     stot = stot / interval
 
-    fstr = line_format % (curr_irqline[len(curr_irqline)-1], irq, str, itot,
+    fstr = line_format % (curr_irqline[len(curr_irqline)-1][0:12], irq, str, itot,
                           stot)
 
     return fstr
@@ -121,20 +121,20 @@ def get_irq():
 
     for line in lines:
         if len(line) > 2:
-            irqline_res = parse_irqline(line, match)
+            irqline_res = parse_irqline(line)
             if irqline_res:
                 irqs[irqline_res[0]] = irqline_res[1]
 
     return irqs
 
-def parse_irqline(line, match):
+def parse_irqline(line):
     line = line.strip()
 
-    if match not in line:
+    if match.search(line) == None:
         return
 
-    data = line.split(':')
-    if len(data) != 2:
+    data = line.split(':',2)
+    if len(data) < 2:
         return
 
     irq = data[0]
@@ -191,13 +191,17 @@ if __name__ == "__main__":
         interval = float(args.interval[0])
     if len(args.match) == 1:
         match = args.match[0]
+    match = re.compile(match)
     try:
+        if len(get_irq()) == 0:
+            print("Matching irqs not found")
+            sys.exit(1)
         scr = curses.initscr()
         y,x = scr.getmaxyx()
         scr.keypad(1)
         sys.exit(main())
     except KeyboardInterrupt:
         reset_term()
-    except:
+    except Exception:
         reset_term()
         raise
