@@ -6,8 +6,8 @@ import sys
 import argparse
 import curses
 
-line_format = '[%12s | %03s] %s [%10i | %5i]'
-head_format = '[%12s | %03s] %s [%10s | %5s]'
+line_format = '[%13s | %03s] %s [%10i | %5i]'
+head_format = '[%13s | %03s] %s [%10s | %5s]'
 
 # Nearly every interesting interrupt have dash on its name
 match = '-'
@@ -84,7 +84,7 @@ def get_diffline(irq, curr_irqline, old_irqline, iv_start, interval):
 
     itot=0
 
-    for i in range(0,len(curr_irqline)-2):
+    for i in range(0,len(curr_irqline)-1):
         ind = None
 
         diff_to_begin = int(curr_irqline[i])-int(iv_start[i])
@@ -95,20 +95,20 @@ def get_diffline(irq, curr_irqline, old_irqline, iv_start, interval):
             ind = '#'
         else:
             ind = '-'
-        str = str + " %s" % (ind) 
+        str = str + " %s" % (ind)
 
         itot += diff_to_begin
 
     stot=0
 
-    for i in range(0,len(curr_irqline)-2):
+    for i in range(0,len(curr_irqline)-1):
 
         diff_to_old = int(curr_irqline[i])-int(old_irqline[i])
         stot += diff_to_old
 
     stot = stot / interval
 
-    fstr = line_format % (curr_irqline[len(curr_irqline)-1], irq, str, itot,
+    fstr = line_format % (curr_irqline[len(curr_irqline)-1][0:12], irq, str, itot,
                           stot)
 
     return fstr
@@ -121,20 +121,20 @@ def get_irq():
 
     for line in lines:
         if len(line) > 2:
-            irqline_res = parse_irqline(line, match)
+            irqline_res = parse_irqline(line)
             if irqline_res:
                 irqs[irqline_res[0]] = irqline_res[1]
 
     return irqs
 
-def parse_irqline(line, match):
+def parse_irqline(line):
     line = line.strip()
 
-    if match not in line:
+    if match.search(line) == None:
         return
 
-    data = line.split(':')
-    if len(data) != 2:
+    data = line.split(':',2)
+    if len(data) < 2:
         return
 
     irq = data[0]
@@ -191,7 +191,11 @@ if __name__ == "__main__":
         interval = float(args.interval[0])
     if len(args.match) == 1:
         match = args.match[0]
+    match = re.compile(match)
     try:
+        if len(get_irq()) == 0:
+            print("Matching irqs not found")
+            sys.exit(1)
         scr = curses.initscr()
         y,x = scr.getmaxyx()
         curses.curs_set(0)
@@ -199,6 +203,6 @@ if __name__ == "__main__":
         sys.exit(main())
     except KeyboardInterrupt:
         reset_term()
-    except:
+    except Exception:
         reset_term()
         raise
