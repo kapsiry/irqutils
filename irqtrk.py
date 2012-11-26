@@ -6,8 +6,8 @@ import sys
 import argparse
 import curses
 
-line_format = '[%12s | %03s] %s [%10i | %5i]'
-head_format = '[%12s | %03s] %s [%10s | %5s]'
+line_format = '[%13s | %03s] %s [%10i | %5i]'
+head_format = '[%13s | %03s] %s [%10s | %5s]'
 
 # Nearly every interesting interrupt have dash on its name
 match = '-'
@@ -84,7 +84,7 @@ def get_diffline(irq, curr_irqline, old_irqline, iv_start, interval):
 
     itot=0
 
-    for i in range(0,len(curr_irqline)-2):
+    for i in range(0,len(curr_irqline)-1):
         ind = None
 
         diff_to_begin = int(curr_irqline[i])-int(iv_start[i])
@@ -101,7 +101,7 @@ def get_diffline(irq, curr_irqline, old_irqline, iv_start, interval):
 
     stot=0
 
-    for i in range(0,len(curr_irqline)-2):
+    for i in range(0,len(curr_irqline)-1):
 
         diff_to_old = int(curr_irqline[i])-int(old_irqline[i])
         stot += diff_to_old
