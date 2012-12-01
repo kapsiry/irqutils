@@ -32,6 +32,15 @@ def main():
     scr.timeout(int(interval * 50))
     print_header()
     while True:
+        ny, nx = scr.getmaxyx()
+        if ny != y or nx != x:
+            # screen resized
+            scr.clear()
+            print_header()
+            y = ny
+            x = nx
+            pad.clear()
+            pad.resize(y,x)
         curr_irq = get_irq()
         print_irqdiff(curr_irq, old_irq, iv_start, interval)
         old_irq = curr_irq
@@ -54,8 +63,14 @@ def main():
 
 def print_header():
     cpus = get_cpu_count()
-    center = '+ = Current, # = Old, - = No'
-    for i in range((cpus * 2) - len(center)):
+    y,x = scr.getmaxyx()
+    if (cpus * 2 + 43 ) > x:
+        spacing = 1
+        center = '+/#/-'
+    else:
+        spacing = 2
+        center = '+ = Current, # = Old, - = No'
+    for i in range((cpus * spacing) - len(center)):
         if (i % 2) == 0:
             center += ' '
         else:
@@ -78,9 +93,13 @@ def print_irqdiff(curr_irq, old_irq, iv_start, interval):
 
 def get_diffline(irq, curr_irqline, old_irqline, iv_start, interval):
     str = ""
+    y,x = scr.getmaxyx()
 
     itot=0
-
+    if ((len(curr_irqline) - 1)*2 + 43) > x:
+        spacing = 0
+    else:
+        spacing = 1
     for i in range(0,len(curr_irqline)-1):
         ind = None
 
@@ -92,7 +111,7 @@ def get_diffline(irq, curr_irqline, old_irqline, iv_start, interval):
             ind = '#'
         else:
             ind = '-'
-        str = str + " %s" % (ind)
+        str = str + " "*spacing + "%s" % (ind)
 
         itot += diff_to_begin
 
@@ -178,7 +197,14 @@ def get_cpu_count():
     return cpu_count
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Displays IRQ usage')
+    parser = argparse.ArgumentParser(description=
+        """Displays IRQ usage
+
+Symbols:
+ + Current interrupt
+ # Old interrupt (there has been interrupts)
+ - No interrupts detected""",
+        formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('--interval','-i', help="refresh interval", nargs=1,
                         type=float, default=[1])
     parser.add_argument('--match','-m', help="match IRQ name", nargs=1,
