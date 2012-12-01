@@ -64,12 +64,13 @@ def main():
 def print_header():
     cpus = get_cpu_count()
     y,x = scr.getmaxyx()
+    center = '+ = Current, # = Old, - = No'
     if (cpus * 2 + 43 ) > x:
         spacing = 1
-        center = '+/#/-'
     else:
         spacing = 2
-        center = '+ = Current, # = Old, - = No'
+    if cpus < 15 or spacing == 1:
+        center = '+/#/-'
     for i in range((cpus * spacing) - len(center)):
         if (i % 2) == 0:
             center += ' '
