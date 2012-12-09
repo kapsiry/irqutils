@@ -111,9 +111,6 @@ def print_irqdiff(curr_irq, old_irq, iv_start, interval):
                 vertmax = False
             else:
                 out += ' '
-            f = open("/tmp/spurdo.txt", 'w')
-            f.write("line: %s" % out)
-            f.close()
         pad.addstr(row+vertcount, 22, out)
         vertcount += 1
 
