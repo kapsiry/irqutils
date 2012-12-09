@@ -21,7 +21,7 @@ def main():
     global scroll,scr,pad
     y,x = scr.getmaxyx()
     irq_count = len(get_irq())
-    pad = curses.newpad(irq_count, x)
+    pad = curses.newpad(irq_count + 7, x)
     curses.noecho()
     # instant key input
     curses.cbreak()
@@ -91,6 +91,46 @@ def print_irqdiff(curr_irq, old_irq, iv_start, interval):
                 row += 1
             except Exception as e:
                 print("ERROR: %s" % e)
+    # print irqs per cpu
+    irqs_per_cpu = get_cpu_diffline(curr_irq, old_irq, iv_start, interval)
+    vertcount = 0
+    vertmax = False
+    y,x = scr.getmaxyx()
+    cpu_count = get_cpu_count()
+    if ((cpu_count - 1)*2 + 43) > x:
+        spacing = 0
+    else:
+        spacing = 1
+    while not vertmax and vertcount < 7:
+        out = ''
+        vertmax = True
+        for irqs in irqs_per_cpu:
+            out += ' '*spacing
+            if len(str(irqs)) > vertcount:
+                out += str(irqs)[vertcount]
+                vertmax = False
+            else:
+                out += ' '
+            f = open("/tmp/spurdo.txt", 'w')
+            f.write("line: %s" % out)
+            f.close()
+        pad.addstr(row+vertcount, 22, out)
+        vertcount += 1
+
+def get_cpu_diffline(curr_irq, old_irq, iv_start, interval):
+    cpu_count = get_cpu_count()
+    irqs_per_cpu = []
+    for irq in curr_irq:
+        #if old_irq[irq] == None:
+        #    continue
+        for cpu in range(len(curr_irq[irq][0:cpu_count])):
+            if len(irqs_per_cpu) <= cpu:
+                irqs_per_cpu.append(0)
+            try:
+                irqs_per_cpu[cpu] += int((int(curr_irq[irq][cpu]) - int(old_irq[irq][cpu])) / interval)
+            except ValueError:
+                continue
+    return irqs_per_cpu
 
 def get_diffline(irq, curr_irqline, old_irqline, iv_start, interval):
     str = ""
