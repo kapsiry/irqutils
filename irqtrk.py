@@ -2,7 +2,6 @@
 import re
 import sys
 from time import sleep
-import sys
 import optparse
 import curses
 from datetime import datetime
@@ -30,6 +29,7 @@ class IRQtrk(object):
         self.hpad = None
         self.y = None
         self.x = None
+        self.core_irqs = []
         self.loops = 0
         self.time = datetime.now()
         self.old_time = datetime.now()
@@ -57,9 +57,21 @@ class IRQtrk(object):
         # instant key input
         curses.cbreak()
         self.hpad = curses.newpad(1, self.x)
-        self.pad = curses.newpad(self.irq_count + 7, self.x)
+        self.pad_y = self.irq_count + 7
+        self.pad = curses.newpad(self._get_height(), self.x)
         # refresh every interval seconds
         self._fit_size()
+
+    def _get_height(self):
+        return self.irq_count + self._get_cpu_rows() + 2
+
+    def _get_width(self, spacing=None):
+        if not spacing:
+            spacing = self.spacing
+        return self.cpu_count * spacing + 57
+
+    def _get_cpu_rows(self):
+        return int(self.cpu_count / int(self._get_width() / 15))
 
     def _fit_size(self):
         """
@@ -72,9 +84,11 @@ class IRQtrk(object):
             self.y = ny
             self.x = nx
             self.pad.clear()
-            self.pad.resize(self.y,self.x)
+            self.hpad.clear()
+            self.hpad.resize(1, self.x)
+            self.pad.resize(self._get_height(),self.x)
 
-        if (self.cpu_count * 2 + 43) > self.x:
+        if self._get_width(spacing=2) > self.x:
             self.spacing = 1
             self.center = '+/#/-'
         else:
@@ -128,20 +142,32 @@ class IRQtrk(object):
                 except Exception as e:
                     print("ERROR: %s" % e)
                     raise
+        core = 0
+        place = 0
+        vplace = 0
+        rows = self._get_cpu_rows()
+        for irqs in self.core_irqs:
+            try:
+                self.pad.addstr(row + vplace,place, "CPU%2s:%6i" % (core, irqs))
+            except:
+                break
+            vplace += 1
+            if vplace > rows:
+                vplace = 0
+                place += 13
+            core += 1
         self.hpad.addstr(0, 0, HEAD_FORMAT % ('name', 'IRQ', 
                                 self.center, 'Interrupts', '1/sec'))
         self.hpad.refresh(0, 0, 0, 0, 1, self.x-1)
         self.pad.refresh(self.scroll, 0, 1, 0, self.y-1, self.x-1)
-        # TODO: irqs per cpu here
 
     def _get_diffline(self, k):
         retval = ''
         itot = 0
         for i in range(0,len(self.curr_irqs[k])-1):
             ind = None
-            
             diff_to_begin = int(self.curr_irqs[k][i])-int(self.irqs_start[k][i])
-            
+
             if self.curr_irqs[k][i] != self.old_irqs[k][i]:
                 ind = '+'
             elif diff_to_begin != 0:
@@ -149,17 +175,21 @@ class IRQtrk(object):
             else:
                 ind = '-'
             retval += " "*(self.spacing - 1) + str(ind)
-            
             itot += diff_to_begin
 
         stot=0
+        core = 0
         for i in range(0,len(self.curr_irqs[k])-1):
             diff_to_old = int(self.curr_irqs[k][i])-int(self.old_irqs[k][i])
             stot += diff_to_old
+            if len(self.core_irqs) == core:
+                self.core_irqs.append(0)
+            self.core_irqs[core] += int(diff_to_old)
+            core += 1
 
-            time = self.time - self.old_time
-            time = time.seconds + (float(time.microseconds) / 1000000)
-            stot = int((stot / time)+ .5)
+        time = self.time - self.old_time
+        time = time.seconds + (float(time.microseconds) / 1000000)
+        stot = int(stot / time + 0.5)
         name = self.curr_irqs[k][len(self.curr_irqs[k])-1][0:12]
         if stot > 100000:
             stot = 0
@@ -181,7 +211,7 @@ class IRQtrk(object):
         for core_irqs in irqdata_array:
             try:
                 int(core_irqs)
-            except:
+            except ValueError:
                 if core_irqs != 'interrupts' and '-edge' not in core_irqs and \
                    '-fasteoi' not in core_irqs:
                     name.append(core_irqs)
@@ -210,6 +240,7 @@ class IRQtrk(object):
             self.old_irqs = self.curr_irqs
             self.curr_irqs = {}
             self.old_time = self.time
+            self.core_irqs = []
             # Sleep
             g = 0
             while True:
@@ -223,7 +254,7 @@ class IRQtrk(object):
                         self.scroll += 1
                     break
                 g += 1
-                if g > 19:
+                if g > 14:
                     break
 
 def reset_term():
