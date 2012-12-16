@@ -59,8 +59,8 @@ class IRQtrk(object):
         self.hpad = curses.newpad(1, self.x)
         self.pad_y = self.irq_count + 7
         self.pad = curses.newpad(self._get_height(), self.x)
-        # refresh every interval seconds
-        self._fit_size()
+        #self._fit_size()
+        self._set_header()
 
     def _get_height(self):
         return self.irq_count + self._get_cpu_rows() + 2
@@ -68,10 +68,10 @@ class IRQtrk(object):
     def _get_width(self, spacing=None):
         if not spacing:
             spacing = self.spacing
-        return self.cpu_count * spacing + 57
+        return self.cpu_count * spacing + 43
 
     def _get_cpu_rows(self):
-        return int(self.cpu_count / int(self._get_width() / 15))
+        return int(self.cpu_count / int(self._get_width() / 12))
 
     def _fit_size(self):
         """
@@ -87,6 +87,9 @@ class IRQtrk(object):
             self.hpad.clear()
             self.hpad.resize(1, self.x)
             self.pad.resize(self._get_height(),self.x)
+            self._set_header()
+
+    def _set_header(self):
 
         if self._get_width(spacing=2) > self.x:
             self.spacing = 1
@@ -94,6 +97,8 @@ class IRQtrk(object):
         else:
             self.spacing = 2
             self.center = '+ = Current, # = Old, - = No'
+        if (self.cpu_count * self.spacing) < 32:
+            self.center = '+/#/-'
         # ugly center placement, format available in Python >= 2.7
         for i in range((self.cpu_count * self.spacing) - len(self.center)):
             if (i % 2) == 0:
@@ -142,19 +147,28 @@ class IRQtrk(object):
                 except Exception as e:
                     print("ERROR: %s" % e)
                     raise
+
+        st = 'irqs per core'
+        for i in range(self._get_width() - len(st)):
+            if (i % 2) == 0:
+                st = "-%s" % st
+            else:
+                st = "%s-" % st
+        self.pad.addstr(row, 0, st)
+        row += 1
         core = 0
         place = 0
         vplace = 0
         rows = self._get_cpu_rows()
         for irqs in self.core_irqs:
             try:
-                self.pad.addstr(row + vplace,place, "CPU%2s:%6i" % (core, irqs))
+                self.pad.addstr(row + vplace,place, "[%02i:%7i]" % (core, irqs))
             except:
                 break
             vplace += 1
             if vplace > rows:
                 vplace = 0
-                place += 13
+                place += 12
             core += 1
         self.hpad.addstr(0, 0, HEAD_FORMAT % ('name', 'IRQ', 
                                 self.center, 'Interrupts', '1/sec'))
