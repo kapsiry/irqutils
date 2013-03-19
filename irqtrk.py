@@ -124,15 +124,10 @@ class IRQtrk(object):
 
     def _get_cpu_count(self):
         """Get number of CPUs"""
-        if not self.cpu_count:
-            self.cpu_count = 0
-            f = open('/proc/cpuinfo', 'r')
-            for l in f.readlines():
-                if len(l) > 4:
-                    key,value = l.split(':',2)
-                    if key.strip() == 'processor':
-                        self.cpu_count += 1
-        return self.cpu_count
+        f = open('/proc/interrupts', 'r')
+        line = f.readline()
+        f.close()
+        return len(line.split())
 
     def _refresh_screen(self):
         row = 0
